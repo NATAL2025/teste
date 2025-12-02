@@ -137,7 +137,7 @@ function atualizarDiasCalculados(){
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
-// ----- VERIFICAÇÃO DUPLICADOS PELO NOME (MOSTRA DATAS EM CONFLITO) -----
+// ----- VERIFICAÇÃO DUPLICADOS -----
 async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
     try {
         const { data: pedidos, error } = await supabase
@@ -150,18 +150,46 @@ async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
         const inicioNovo = new Date(dataInicio);
         const fimNovo = new Date(dataFim);
 
-        // Filtra pedidos que conflitam com o novo intervalo
         const conflitos = pedidos.filter(pedido => {
             const inicioExistente = new Date(pedido.data_inicio);
             const fimExistente = new Date(pedido.data_fim);
             return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
         });
 
-        return conflitos;
-
+        return conflitos; // retorna array com datas em conflito
     } catch(err){
         console.error("Erro ao verificar datas duplicadas:", err);
         return [];
+    }
+}
+
+// ----- VERIFICA LIMITE DE DIAS -----
+async function verificarLimites(nome, tipoDias, diasNovo){
+    const limites = {
+        "Andreia Gralha": { "Preferenciais": 5, "Não Preferenciais": 10 },
+        "Telma Rosa": { "Preferenciais": 2, "Não Preferenciais": 2 }
+    };
+
+    try {
+        const { data: pedidos, error } = await supabase
+            .from('pedidos_ferias')
+            .select('tipo_dias,total_dias')
+            .eq('nome', nome);
+
+        if(error) throw error;
+
+        let diasUsados = 0;
+        pedidos.forEach(p => {
+            if(p.tipo_dias === tipoDias) diasUsados += p.total_dias;
+        });
+
+        const limite = limites[nome][tipoDias];
+        const diasRestantes = limite - diasUsados;
+
+        return { pode: diasNovo <= diasRestantes, diasRestantes };
+    } catch(err){
+        console.error("Erro ao verificar limites:", err);
+        return { pode: true, diasRestantes: 0 };
     }
 }
 
@@ -184,12 +212,21 @@ form.addEventListener('submit', async function(event){
     const dataFim = document.getElementById('dataFim').value;
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
+    // Verifica datas duplicadas
     const conflitos = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
-
     if(conflitos.length > 0){
-        const msg = conflitos.map(c => `${c.data_inicio} a ${c.data_fim}`).join(', ');
+        const listaConflitos = conflitos.map(c => `${c.data_inicio} a ${c.data_fim}`).join(", ");
+        document.getElementById('errorMessages').innerText = `❌ Conflito de datas: ${listaConflitos}`;
+        document.getElementById('successMessage').innerText = '';
+        document.getElementById('errorMessages').style.display = 'block';
+        return;
+    }
+
+    // Verifica limite de dias
+    const limiteCheck = await verificarLimites(nome, tipoDias, totalDias);
+    if(!limiteCheck.pode){
         document.getElementById('errorMessages').innerText = 
-            `❌ Conflito com datas já pedidas: ${msg}`;
+            `❌ Limite de dias ${tipoDias} excedido! Restam ${limiteCheck.diasRestantes} dias.`;
         document.getElementById('successMessage').innerText = '';
         document.getElementById('errorMessages').style.display = 'block';
         return;
