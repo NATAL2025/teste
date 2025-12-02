@@ -12,8 +12,9 @@ body {
     margin: 0;
     height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 40px;
 }
 #passwordPrompt, #formContainer {
     background-color: white;
@@ -22,6 +23,7 @@ body {
     box-shadow: 0 4px 20px rgba(15, 61, 46, 0.2);
     max-width: 400px;
     width: 100%;
+    margin-bottom: 20px;
 }
 label { display: block; margin-bottom: 10px; color: #0f3d2e; }
 select, input[type="date"], input[type="password"] {
@@ -38,9 +40,14 @@ button:hover { background-color: #0c3326; }
 .success { color: green; font-weight: bold; margin-top: 15px; }
 #detalhesReserva { margin-top: 20px; }
 #formContainer { display: none; }
-#novoPedidoBtn { background-color: #e6ffec; color: #0f3d2e; border: 1px solid #0f3d2e; }
-#novoPedidoBtn:hover { background-color: #d1f7dc; }
 h1, h2 { text-align: center; }
+#resumoPedidos div {
+    border: 1px solid #0f3d2e;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 6px;
+    background-color: #e6ffec;
+}
 </style>
 </head>
 <body>
@@ -85,8 +92,7 @@ h1, h2 { text-align: center; }
 <button type="submit">Enviar</button>
 </form>
 
-<div id="detalhesReserva"></div>
-<button id="novoPedidoBtn" style="display:none;">Submeter Novo Pedido</button>
+<div id="resumoPedidos"></div>
 </div>
 
 <script type="module">
@@ -144,18 +150,16 @@ async function enviarAoSupabase(dados){
             const err = await response.text();
             throw new Error(err);
         }
-        const resultado = await response.json();
-        console.log('Registro inserido:',resultado);
-        return resultado;
+        return await response.json();
     } catch(e){ console.error('Erro ao enviar para Supabase:',e); throw e; }
 }
 
 // ----- FORM SUBMIT -----
 const form = document.getElementById('reservaForm');
-const btnNovoPedido = document.getElementById('novoPedidoBtn');
 
 form.addEventListener('submit', async function(event){
     event.preventDefault();
+
     const nome = document.getElementById('nome').value;
     const tipoDias = document.getElementById('tipoDias').value;
     const dataInicio = document.getElementById('dataInicio').value;
@@ -164,24 +168,33 @@ form.addEventListener('submit', async function(event){
 
     const dados = { nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias };
 
-    try{
+    try {
         await enviarAoSupabase(dados);
+
+        // Criar “imagem”/card do pedido
+        const resumoDiv = document.createElement('div');
+        resumoDiv.innerHTML = `
+            <strong>Pedido Registrado:</strong><br>
+            Nome: ${nome}<br>
+            Tipo: ${tipoDias}<br>
+            Data Início: ${dataInicio}<br>
+            Data Fim: ${dataFim}<br>
+            Dias Úteis: ${totalDias}
+        `;
+        document.getElementById('resumoPedidos').appendChild(resumoDiv);
+
+        // Mensagem de sucesso
         document.getElementById('successMessage').innerText = "✔️ Pedido submetido com sucesso!";
         document.getElementById('errorMessages').innerText = "";
-        btnNovoPedido.style.display='inline-block';
-    } catch(err){
-        document.getElementById('errorMessages').innerText = "❌ Erro ao enviar: "+err.message;
-        document.getElementById('successMessage').innerText='';
-    }
-});
 
-// ----- RESET FORM -----
-btnNovoPedido.addEventListener('click', function(){
-    form.reset();
-    document.getElementById('diasCalculados').innerText='Dias úteis calculados: 0';
-    document.getElementById('successMessage').innerText='';
-    document.getElementById('errorMessages').innerText='';
-    btnNovoPedido.style.display='none';
+        // Resetar formulário
+        form.reset();
+        document.getElementById('diasCalculados').innerText = 'Dias úteis calculados: 0';
+
+    } catch(err) {
+        document.getElementById('errorMessages').innerText = "❌ Erro ao enviar: " + err.message;
+        document.getElementById('successMessage').innerText = '';
+    }
 });
 
 // ----- LOGIN -----
@@ -199,5 +212,3 @@ document.getElementById('btnEntrar').addEventListener('click', function(){
 </script>
 </body>
 </html>
-
-
