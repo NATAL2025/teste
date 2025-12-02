@@ -173,7 +173,8 @@ document.getElementById('reservaForm').addEventListener('submit', async function
 });
 
 function novoPedido(){
-    document.getElementById('reservaForm').reset();
+    const form = document.getElementById('reservaForm');
+    form.reset();
     document.getElementById('diasCalculados').innerText='Dias úteis calculados: 0';
     document.getElementById('successMessage').innerText='';
     document.getElementById('errorMessages').innerText='';
@@ -183,9 +184,8 @@ function novoPedido(){
 // ----- LOGIN -----
 document.getElementById('btnEntrar').addEventListener('click', function(){
     const senha = document.getElementById('password').value;
-    const senhaCorreta = "senha123";
     const erroDiv = document.getElementById('senhaErro');
-    if(senha===senhaCorreta){
+    if(senha === "senha123"){
         document.getElementById('passwordPrompt').style.display='none';
         document.getElementById('formContainer').style.display='block';
         erroDiv.style.display='none';
