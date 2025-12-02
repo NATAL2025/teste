@@ -154,6 +154,31 @@ async function enviarAoSupabase(dados){
     } catch(e){ console.error('Erro ao enviar para Supabase:',e); throw e; }
 }
 
+// ----- VERIFICAR DATAS DUPLICADAS POR NOME -----
+async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos_ferias?select=data_inicio,data_fim&nome=eq.${encodeURIComponent(nome)}`, {
+            method: 'GET',
+            headers: {
+                'apikey': SUPABASE_API_KEY,
+                'Authorization': `Bearer ${SUPABASE_API_KEY}`
+            }
+        });
+        const pedidos = await response.json();
+        const inicioNovo = new Date(dataInicio);
+        const fimNovo = new Date(dataFim);
+
+        return pedidos.some(pedido => {
+            const inicioExistente = new Date(pedido.data_inicio);
+            const fimExistente = new Date(pedido.data_fim);
+            return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
+        });
+    } catch(err) {
+        console.error("Erro ao verificar datas duplicadas:", err);
+        return false;
+    }
+}
+
 // ----- FORM SUBMIT -----
 const form = document.getElementById('reservaForm');
 
@@ -166,12 +191,19 @@ form.addEventListener('submit', async function(event){
     const dataFim = document.getElementById('dataFim').value;
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
+    // Verifica sobreposição pelo nome
+    const existeDuplicado = await verificarDatasDuplicadas(nome,dataInicio,dataFim);
+    if(existeDuplicado){
+        document.getElementById('errorMessages').innerText = "❌ Você já tem um pedido que sobrepõe estas datas!";
+        document.getElementById('successMessage').innerText = '';
+        return;
+    }
+
     const dados = { nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias };
 
     try {
         await enviarAoSupabase(dados);
 
-        // Criar “imagem”/card do pedido
         const resumoDiv = document.createElement('div');
         resumoDiv.innerHTML = `
             <strong>Pedido Registrado:</strong><br>
@@ -183,11 +215,9 @@ form.addEventListener('submit', async function(event){
         `;
         document.getElementById('resumoPedidos').appendChild(resumoDiv);
 
-        // Mensagem de sucesso
         document.getElementById('successMessage').innerText = "✔️ Pedido submetido com sucesso!";
         document.getElementById('errorMessages').innerText = "";
 
-        // Resetar formulário
         form.reset();
         document.getElementById('diasCalculados').innerText = 'Dias úteis calculados: 0';
 
