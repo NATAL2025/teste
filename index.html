@@ -150,6 +150,7 @@ async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
         const inicioNovo = new Date(dataInicio);
         const fimNovo = new Date(dataFim);
 
+        // Filtra pedidos que conflitam com o novo intervalo
         const conflitos = pedidos.filter(pedido => {
             const inicioExistente = new Date(pedido.data_inicio);
             const fimExistente = new Date(pedido.data_fim);
