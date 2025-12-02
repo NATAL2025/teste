@@ -131,22 +131,24 @@ document.getElementById('reservaForm').addEventListener('submit', async function
     const dataFim=document.getElementById('dataFim').value;
     const totalDias=calcularDiasEntreDatas(dataInicio,dataFim);
 
-    try{
-        const {data: duplicados,error: errCheck}=await supabase.from('pedidos_ferias')
-            .select('*')
-            .eq('nome',nome)
-            .eq('data_inicio',dataInicio)
-            .eq('data_fim',dataFim);
-        if(errCheck) throw errCheck;
+    console.log("Enviando para Supabase:", { nome, tipoDias, dataInicio, dataFim, totalDias });
 
-        if(duplicados.length>0){
-            document.getElementById('errorMessages').innerText="❌ Já existe um pedido para o mesmo nome e mesmas datas!";
+    try{
+        // insere no Supabase
+        const { data, error } = await supabase.from('pedidos_ferias')
+            .insert([{ nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias }]);
+        console.log("Resultado:", { data, error });
+
+        if(error){
+            // Verifica se é conflito de datas
+            if(error.code === '23505'){
+                document.getElementById('errorMessages').innerText="❌ Já existe um pedido que se sobrepõe com estas datas!";
+            } else {
+                document.getElementById('errorMessages').innerText="❌ Erro ao enviar: "+error.message;
+            }
             document.getElementById('successMessage').innerText="";
             return;
         }
-
-        const {error}=await supabase.from('pedidos_ferias').insert([{nome,tipo_dias:tipoDias,data_inicio:dataInicio,data_fim:dataFim,total_dias:totalDias}]);
-        if(error) throw error;
 
         document.getElementById('errorMessages').innerText="";
         document.getElementById('successMessage').innerText="✔️ Pedido submetido com sucesso!";
