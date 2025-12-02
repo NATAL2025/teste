@@ -12,8 +12,8 @@ body {
     margin: 0;
     height: 100vh;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     padding-top: 40px;
 }
 #passwordPrompt, #formContainer {
@@ -40,7 +40,6 @@ button:hover { background-color: #0c3326; }
 .success { color: green; font-weight: bold; margin-top: 15px; }
 #detalhesReserva { margin-top: 20px; }
 #formContainer { display: none; }
-h1, h2 { text-align: center; }
 #resumoPedidos div {
     border: 1px solid #0f3d2e;
     padding: 10px;
@@ -98,7 +97,7 @@ h1, h2 { text-align: center; }
 <script type="module">
 // ----- CONFIGURAÇÃO SUPABASE -----
 const SUPABASE_URL = 'https://bijndfsxrzjviwrdvwms.supabase.co';
-const SUPABASE_API_KEY = 'YOUR_SUPABASE_API_KEY_HERE'; // substitua pela sua
+const SUPABASE_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpam5kZnN4cnpqdml3cmR2d21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NTA5NTIsImV4cCI6MjA2NjQyNjk1Mn0.EWaFInuqTaxvnjytb40DdnflEbBrbSYcViKLYc_kKBk';
 
 // ----- CONFIGURAÇÃO FERIADOS -----
 const feriados = ['2025-04-25', '2025-04-18', '2025-05-01'];
@@ -133,54 +132,45 @@ function atualizarDiasCalculados(){
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
-// ----- ENVIAR AO SUPABASE -----
+// ----- FUNÇÕES SUPABASE -----
 async function enviarAoSupabase(dados){
-    try{
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos_ferias`, {
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json',
-                'apikey':SUPABASE_API_KEY,
-                'Authorization':`Bearer ${SUPABASE_API_KEY}`,
-                'Prefer':'return=representation'
-            },
-            body: JSON.stringify(dados)
-        });
-        if(!response.ok){
-            const err = await response.text();
-            throw new Error(err);
-        }
-        return await response.json();
-    } catch(e){ console.error('Erro ao enviar para Supabase:',e); throw e; }
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos_ferias`, {
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'apikey':SUPABASE_API_KEY,
+            'Authorization':`Bearer ${SUPABASE_API_KEY}`,
+            'Prefer':'return=representation'
+        },
+        body: JSON.stringify(dados)
+    });
+    if(!response.ok){
+        const err = await response.text();
+        throw new Error(err);
+    }
+    return await response.json();
 }
 
-// ----- VERIFICAR CONFLITO DE DATAS -----
-async function datasConflitam(nome, novaInicio, novaFim){
+// ----- VERIFICAR DATAS EXISTENTES -----
+async function datasExistentes(nome, dataInicio, dataFim){
     try{
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos_ferias?nome=eq.${encodeURIComponent(nome)}`, {
+        const url = `${SUPABASE_URL}/rest/v1/pedidos_ferias?select=*&nome=eq.${encodeURIComponent(nome)}&or=(data_inicio.lte.${dataFim},data_fim.gte.${dataInicio})`;
+        const response = await fetch(url, {
             headers:{
                 'apikey': SUPABASE_API_KEY,
                 'Authorization': `Bearer ${SUPABASE_API_KEY}`
             }
         });
-        if(!response.ok) throw new Error('Falha ao buscar pedidos existentes');
-        const pedidos = await response.json();
-
-        const novaIni = new Date(novaInicio);
-        const novaFi = new Date(novaFim);
-
-        for(const p of pedidos){
-            const inicio = new Date(p.data_inicio);
-            const fim = new Date(p.data_fim);
-            // Verifica sobreposição
-            if(novaIni <= fim && novaFi >= inicio){
-                return `❌ Já existe um pedido para essas datas (${p.data_inicio} a ${p.data_fim})!`;
-            }
+        if(!response.ok){
+            const err = await response.text();
+            throw new Error(err);
         }
-        return null;
+        const dados = await response.json();
+        // Verifica se existe sobreposição real
+        return dados.some(pedido => !(new Date(dataFim) < new Date(pedido.data_inicio) || new Date(dataInicio) > new Date(pedido.data_fim)));
     } catch(err){
-        console.error('Erro ao verificar datas:', err);
-        return '❌ Erro ao verificar datas existentes';
+        console.error('Erro ao verificar datas existentes:', err);
+        throw err;
     }
 }
 
@@ -196,26 +186,23 @@ form.addEventListener('submit', async function(event){
     const dataFim = document.getElementById('dataFim').value;
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
-    const errorMessages = document.getElementById('errorMessages');
-    const successMessage = document.getElementById('successMessage');
-
-    // Verifica conflito
-    const conflito = await datasConflitam(nome, dataInicio, dataFim);
-    if(conflito){
-        errorMessages.innerText = conflito;
-        errorMessages.style.display = 'block';
-        successMessage.innerText = '';
-        return;
-    } else {
-        errorMessages.style.display = 'none';
-    }
-
     const dados = { nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias };
 
     try{
+        // 1️⃣ Verifica se há datas sobrepostas
+        const existe = await datasExistentes(nome, dataInicio, dataFim);
+        if(existe){
+            const errDiv = document.getElementById('errorMessages');
+            errDiv.innerText = "❌ Já existe um pedido para essas datas!";
+            errDiv.style.display = 'block';
+            document.getElementById('successMessage').innerText='';
+            return;
+        }
+
+        // 2️⃣ Envia ao Supabase
         await enviarAoSupabase(dados);
 
-        // Criar resumo do pedido
+        // 3️⃣ Cria card de resumo
         const resumoDiv = document.createElement('div');
         resumoDiv.innerHTML = `
             <strong>Pedido Registrado:</strong><br>
@@ -227,16 +214,15 @@ form.addEventListener('submit', async function(event){
         `;
         document.getElementById('resumoPedidos').appendChild(resumoDiv);
 
-        successMessage.innerText = "✔️ Pedido submetido com sucesso!";
-        errorMessages.innerText = '';
-
-        // Resetar formulário
+        // 4️⃣ Mensagem sucesso e reset form
+        document.getElementById('successMessage').innerText = "✔️ Pedido submetido com sucesso!";
+        document.getElementById('errorMessages').innerText = '';
         form.reset();
         document.getElementById('diasCalculados').innerText = 'Dias úteis calculados: 0';
+
     } catch(err){
-        errorMessages.innerText = "❌ Erro ao enviar: " + err.message;
-        errorMessages.style.display = 'block';
-        successMessage.innerText = '';
+        document.getElementById('errorMessages').innerText = "❌ Erro ao verificar datas existentes";
+        document.getElementById('successMessage').innerText='';
     }
 });
 
