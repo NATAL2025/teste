@@ -137,7 +137,7 @@ function atualizarDiasCalculados(){
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
-// ----- VERIFICAÇÃO DUPLICADOS -----
+// ----- VERIFICA DATAS DUPLICADAS -----
 async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
     try {
         const { data: pedidos, error } = await supabase
@@ -156,7 +156,7 @@ async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
             return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
         });
 
-        return conflitos; // retorna array com datas em conflito
+        return conflitos; // retorna array de pedidos em conflito
     } catch(err){
         console.error("Erro ao verificar datas duplicadas:", err);
         return [];
@@ -173,23 +173,23 @@ async function verificarLimites(nome, tipoDias, diasNovo){
     try {
         const { data: pedidos, error } = await supabase
             .from('pedidos_ferias')
-            .select('tipo_dias,total_dias')
-            .eq('nome', nome);
+            .select('total_dias,tipo_dias')
+            .eq('nome', nome)
+            .eq('tipo_dias', tipoDias);
 
         if(error) throw error;
 
-        let diasUsados = 0;
-        pedidos.forEach(p => {
-            if(p.tipo_dias === tipoDias) diasUsados += p.total_dias;
-        });
+        let diasUsados = pedidos.reduce((sum,p)=>sum+p.total_dias,0);
+        let totalDepois = diasUsados + diasNovo;
+        let limite = limites[nome][tipoDias];
 
-        const limite = limites[nome][tipoDias];
-        const diasRestantes = limite - diasUsados;
-
-        return { pode: diasNovo <= diasRestantes, diasRestantes };
+        if(totalDepois > limite){
+            return { pode:false, diasRestantes: limite - diasUsados };
+        }
+        return { pode:true, diasRestantes: limite - totalDepois };
     } catch(err){
         console.error("Erro ao verificar limites:", err);
-        return { pode: true, diasRestantes: 0 };
+        return { pode:true, diasRestantes:null };
     }
 }
 
@@ -215,20 +215,19 @@ form.addEventListener('submit', async function(event){
     // Verifica datas duplicadas
     const conflitos = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
     if(conflitos.length > 0){
-        const listaConflitos = conflitos.map(c => `${c.data_inicio} a ${c.data_fim}`).join(", ");
-        document.getElementById('errorMessages').innerText = `❌ Conflito de datas: ${listaConflitos}`;
+        let msg = conflitos.map(c=>`${c.data_inicio} a ${c.data_fim}`).join(', ');
+        document.getElementById('errorMessages').innerText = `❌ Datas em conflito: ${msg}`;
         document.getElementById('successMessage').innerText = '';
-        document.getElementById('errorMessages').style.display = 'block';
+        document.getElementById('errorMessages').style.display='block';
         return;
     }
 
-    // Verifica limite de dias
+    // Verifica limites
     const limiteCheck = await verificarLimites(nome, tipoDias, totalDias);
     if(!limiteCheck.pode){
-        document.getElementById('errorMessages').innerText = 
-            `❌ Limite de dias ${tipoDias} excedido! Restam ${limiteCheck.diasRestantes} dias.`;
+        document.getElementById('errorMessages').innerText = `❌ Limite ultrapassado para ${tipoDias}. Restam ${limiteCheck.diasRestantes} dias.`;
         document.getElementById('successMessage').innerText = '';
-        document.getElementById('errorMessages').style.display = 'block';
+        document.getElementById('errorMessages').style.display='block';
         return;
     }
 
@@ -237,7 +236,6 @@ form.addEventListener('submit', async function(event){
     try{
         await enviarAoSupabase(dados);
 
-        // criar resumo
         const resumoDiv = document.createElement('div');
         resumoDiv.innerHTML = `
             <strong>Pedido Registrado:</strong><br>
@@ -259,7 +257,7 @@ form.addEventListener('submit', async function(event){
     } catch(err){
         document.getElementById('errorMessages').innerText = "❌ Erro ao enviar: "+err.message;
         document.getElementById('successMessage').innerText = '';
-        document.getElementById('errorMessages').style.display = 'block';
+        document.getElementById('errorMessages').style.display='block';
     }
 });
 
