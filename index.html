@@ -86,7 +86,7 @@ h1, h2 { text-align: center; }
 </form>
 
 <div id="detalhesReserva"></div>
-<button id="novoPedidoBtn" style="display:none;" onclick="novoPedido()">Submeter Novo Pedido</button>
+<button id="novoPedidoBtn" style="display:none;">Submeter Novo Pedido</button>
 </div>
 
 <script type="module">
@@ -150,8 +150,11 @@ async function enviarAoSupabase(dados){
     } catch(e){ console.error('Erro ao enviar para Supabase:',e); throw e; }
 }
 
-// ----- SUBMIT FORM -----
-document.getElementById('reservaForm').addEventListener('submit', async function(event){
+// ----- FORM SUBMIT -----
+const form = document.getElementById('reservaForm');
+const btnNovoPedido = document.getElementById('novoPedidoBtn');
+
+form.addEventListener('submit', async function(event){
     event.preventDefault();
     const nome = document.getElementById('nome').value;
     const tipoDias = document.getElementById('tipoDias').value;
@@ -165,21 +168,21 @@ document.getElementById('reservaForm').addEventListener('submit', async function
         await enviarAoSupabase(dados);
         document.getElementById('successMessage').innerText = "✔️ Pedido submetido com sucesso!";
         document.getElementById('errorMessages').innerText = "";
-        document.getElementById('novoPedidoBtn').style.display='inline-block';
+        btnNovoPedido.style.display='inline-block';
     } catch(err){
         document.getElementById('errorMessages').innerText = "❌ Erro ao enviar: "+err.message;
         document.getElementById('successMessage').innerText='';
     }
 });
 
-function novoPedido(){
-    const form = document.getElementById('reservaForm');
+// ----- RESET FORM -----
+btnNovoPedido.addEventListener('click', function(){
     form.reset();
     document.getElementById('diasCalculados').innerText='Dias úteis calculados: 0';
     document.getElementById('successMessage').innerText='';
     document.getElementById('errorMessages').innerText='';
-    document.getElementById('novoPedidoBtn').style.display='none';
-}
+    btnNovoPedido.style.display='none';
+});
 
 // ----- LOGIN -----
 document.getElementById('btnEntrar').addEventListener('click', function(){
@@ -196,3 +199,5 @@ document.getElementById('btnEntrar').addEventListener('click', function(){
 </script>
 </body>
 </html>
+
+
