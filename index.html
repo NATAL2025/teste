@@ -137,7 +137,7 @@ function atualizarDiasCalculados(){
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
-// ----- VERIFICAÇÃO DUPLICADOS PELO NOME -----
+// ----- VERIFICAÇÃO DUPLICADOS PELO NOME (MOSTRA DATAS EM CONFLITO) -----
 async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
     try {
         const { data: pedidos, error } = await supabase
@@ -150,14 +150,17 @@ async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
         const inicioNovo = new Date(dataInicio);
         const fimNovo = new Date(dataFim);
 
-        return pedidos.some(pedido => {
+        const conflitos = pedidos.filter(pedido => {
             const inicioExistente = new Date(pedido.data_inicio);
             const fimExistente = new Date(pedido.data_fim);
             return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
         });
+
+        return conflitos;
+
     } catch(err){
         console.error("Erro ao verificar datas duplicadas:", err);
-        return false; // não bloqueia por falha
+        return [];
     }
 }
 
@@ -180,9 +183,12 @@ form.addEventListener('submit', async function(event){
     const dataFim = document.getElementById('dataFim').value;
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
-    const duplicado = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
-    if(duplicado){
-        document.getElementById('errorMessages').innerText = "❌ Já existe um pedido para essas datas!";
+    const conflitos = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
+
+    if(conflitos.length > 0){
+        const msg = conflitos.map(c => `${c.data_inicio} a ${c.data_fim}`).join(', ');
+        document.getElementById('errorMessages').innerText = 
+            `❌ Conflito com datas já pedidas: ${msg}`;
         document.getElementById('successMessage').innerText = '';
         document.getElementById('errorMessages').style.display = 'block';
         return;
