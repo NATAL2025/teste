@@ -195,7 +195,7 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
     const conflitosDatas = listarConflitosFDS_FERIADOS(dataInicio,dataFim);
     if(conflitosDatas.length > 0){
         document.getElementById("errorMessages").innerText =
-        "❌ Datas inválidas no pedido: " + conflitosDatas.join(", ");
+        "❌ Pedido não pode conter Fins de Semana ou Feriados: " + conflitosDatas.join(", ");
         document.getElementById("errorMessages").style.display="block";
         return;
     }
@@ -231,13 +231,13 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
 
     // ✔️ MENSAGEM DE SUCESSO PERSONALIZADA
     document.getElementById("successMessage").innerText =
-    `✔️ Pedido Registrado: ${nome} (${tipoDias}) ${dataInicio} a ${dataFim} (${totalDias} dias úteis)`;
+    `✔️ Pedido Registado: ${nome} (${tipoDias}) ${dataInicio} a ${dataFim} (${totalDias} dias úteis)`;
     document.getElementById("errorMessages").style.display="none";
 
     // resumo
     const div = document.createElement("div");
     div.innerHTML = `
-        <strong>Pedido Registrado:</strong><br>
+        <strong>Pedido Registado:</strong><br>
         Nome: ${nome}<br>
         Tipo: ${tipoDias}<br>
         Data Início: ${dataInicio}<br>
@@ -252,7 +252,7 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
 
 // --- LOGIN ---
 document.getElementById("btnEntrar").addEventListener("click",()=>{
-    if(document.getElementById("password").value === "000"){
+    if(document.getElementById("password").value === "123"){
         document.getElementById("passwordPrompt").style.display="none";
         document.getElementById("formContainer").style.display="block";
     } else {
@@ -263,3 +263,4 @@ document.getElementById("btnEntrar").addEventListener("click",()=>{
 
 </body>
 </html>
+
