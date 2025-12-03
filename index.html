@@ -96,7 +96,6 @@ h1, h2 { text-align: center; }
 </div>
 
 <script type="module">
-// ----- SUPABASE JS -----
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 const supabase = createClient(
@@ -104,27 +103,39 @@ const supabase = createClient(
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpam5kZnN4cnpqdml3cmR2d21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NTA5NTIsImV4cCI6MjA2NjQyNjk1Mn0.EWaFInuqTaxvnjytb40DdnflEbBrbSYcViKLYc_kKBk'
 );
 
-// ----- FERIADOS -----
+// -------- FERIADOS --------
 const feriados = [
     '2025-04-25',
     '2025-04-18',
     '2025-05-01',
-    '2025-12-25', // Natal
-    '2026-01-01'  // Ano Novo
+    '2025-12-25',
+    '2026-01-01'
 ];
 
 const finDeSemana = [0,6];
 
 function isFeriadoOuFimDeSemana(data){
-    const diaDaSemana = data.getDay();
     const dataFormatada = data.toISOString().split('T')[0];
+    const diaDaSemana = data.getDay();
     return finDeSemana.includes(diaDaSemana) || feriados.includes(dataFormatada);
+}
+
+// 🔥 NOVO — verifica se existe feriado OU fim de semana no intervalo
+function intervaloContemFeriadoOuFimDeSemana(dataInicio, dataFim){
+    const start = new Date(dataInicio);
+    const end = new Date(dataFim);
+
+    for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+        if(isFeriadoOuFimDeSemana(d)) return true;
+    }
+    return false;
 }
 
 function calcularDiasEntreDatas(dataInicio,dataFim){
     const start = new Date(dataInicio);
     const end = new Date(dataFim);
     let dias = 0;
+
     for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
         if(isFeriadoOuFimDeSemana(d)) continue;
         dias++;
@@ -136,82 +147,64 @@ function atualizarDiasCalculados(){
     const dataInicio = document.getElementById('dataInicio').value;
     const dataFim = document.getElementById('dataFim').value;
     const div = document.getElementById('diasCalculados');
+
     if(dataInicio && dataFim){
         div.innerText = `Dias úteis calculados: ${calcularDiasEntreDatas(dataInicio,dataFim)}`;
-    } else div.innerText = 'Dias úteis calculados: 0';
+    } else {
+        div.innerText = 'Dias úteis calculados: 0';
+    }
 }
 
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
-// ----- VERIFICA DATAS DUPLICADAS -----
+// ----- VERIFICA DUPLICADAS -----
 async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
-    try {
-        const { data: pedidos, error } = await supabase
-            .from('pedidos_ferias')
-            .select('data_inicio,data_fim')
-            .eq('nome', nome);
+    const { data: pedidos } = await supabase
+        .from('pedidos_ferias')
+        .select('data_inicio,data_fim')
+        .eq('nome', nome);
 
-        if(error) throw error;
+    const inicioNovo = new Date(dataInicio);
+    const fimNovo = new Date(dataFim);
 
-        const inicioNovo = new Date(dataInicio);
-        const fimNovo = new Date(dataFim);
-
-        const conflitos = pedidos.filter(pedido => {
-            const inicioExistente = new Date(pedido.data_inicio);
-            const fimExistente = new Date(pedido.data_fim);
-            return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
-        });
-
-        return conflitos;
-    } catch(err){
-        console.error("Erro ao verificar datas duplicadas:", err);
-        return [];
-    }
+    return pedidos.filter(p => {
+        const inicioExistente = new Date(p.data_inicio);
+        const fimExistente = new Date(p.data_fim);
+        return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
+    });
 }
 
-// ----- VERIFICA LIMITE DE DIAS -----
+// ----- VERIFICA LIMITES -----
 async function verificarLimites(nome, tipoDias, diasNovo){
     const limites = {
         "Andreia Gralha": { "Preferenciais": 5, "Não Preferenciais": 10 },
         "Telma Rosa": { "Preferenciais": 2, "Não Preferenciais": 2 }
     };
 
-    try {
-        const { data: pedidos, error } = await supabase
-            .from('pedidos_ferias')
-            .select('total_dias,tipo_dias')
-            .eq('nome', nome)
-            .eq('tipo_dias', tipoDias);
+    const { data: pedidos } = await supabase
+        .from('pedidos_ferias')
+        .select('total_dias,tipo_dias')
+        .eq('nome', nome)
+        .eq('tipo_dias', tipoDias);
 
-        if(error) throw error;
+    let diasUsados = pedidos.reduce((sum,p)=>sum+p.total_dias,0);
+    let limite = limites[nome][tipoDias];
 
-        let diasUsados = pedidos.reduce((sum,p)=>sum+p.total_dias,0);
-        let totalDepois = diasUsados + diasNovo;
-        let limite = limites[nome][tipoDias];
-
-        if(totalDepois > limite){
-            return { pode:false, diasRestantes: limite - diasUsados };
-        }
-        return { pode:true, diasRestantes: limite - totalDepois };
-    } catch(err){
-        console.error("Erro ao verificar limites:", err);
-        return { pode:true, diasRestantes:null };
+    if(diasUsados + diasNovo > limite){
+        return { pode:false, diasRestantes: limite - diasUsados };
     }
+    return { pode:true, diasRestantes: limite - (diasUsados + diasNovo) };
 }
 
-// ----- ENVIO SUPABASE -----
+// ----- ENVIO -----
 async function enviarAoSupabase(dados){
-    const { data, error } = await supabase.from('pedidos_ferias').insert([dados]);
-    if(error) throw error;
-    return data;
+    return await supabase.from('pedidos_ferias').insert([dados]);
 }
 
-// ----- FORM SUBMIT -----
-const form = document.getElementById('reservaForm');
-
-form.addEventListener('submit', async function(event){
-    event.preventDefault();
+// ----- SUBMIT -----
+document.getElementById('reservaForm').addEventListener('submit', async function(e){
+    e.preventDefault();
 
     const nome = document.getElementById('nome').value;
     const tipoDias = document.getElementById('tipoDias').value;
@@ -219,65 +212,49 @@ form.addEventListener('submit', async function(event){
     const dataFim = document.getElementById('dataFim').value;
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
+    // 🚫 NOVO BLOQUEIO
+    if(intervaloContemFeriadoOuFimDeSemana(dataInicio, dataFim)){
+        document.getElementById('errorMessages').innerText = 
+        "❌ Não pode incluir feriados ou fins de semana no pedido. Escolha apenas dias úteis.";
+        document.getElementById('errorMessages').style.display='block';
+        return;
+    }
+
     const conflitos = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
     if(conflitos.length > 0){
-        let msg = conflitos.map(c=>`${c.data_inicio} a ${c.data_fim}`).join(', ');
-        document.getElementById('errorMessages').innerText = `❌ Datas em conflito: ${msg}`;
-        document.getElementById('successMessage').innerText = '';
+        document.getElementById('errorMessages').innerText = "❌ Datas já reservadas.";
         document.getElementById('errorMessages').style.display='block';
         return;
     }
 
     const limiteCheck = await verificarLimites(nome, tipoDias, totalDias);
     if(!limiteCheck.pode){
-        document.getElementById('errorMessages').innerText = `❌ Limite ultrapassado para ${tipoDias}. Restam ${limiteCheck.diasRestantes} dias.`;
-        document.getElementById('successMessage').innerText = '';
+        document.getElementById('errorMessages').innerText = 
+        `❌ Limite ultrapassado. Restam ${limiteCheck.diasRestantes} dias.`;
         document.getElementById('errorMessages').style.display='block';
         return;
     }
 
     const dados = { nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias };
+    await enviarAoSupabase(dados);
 
-    try{
-        await enviarAoSupabase(dados);
-
-        const resumoDiv = document.createElement('div');
-        resumoDiv.innerHTML = `
-            <strong>Pedido Registrado:</strong><br>
-            Nome: ${nome}<br>
-            Tipo: ${tipoDias}<br>
-            Data Início: ${dataInicio}<br>
-            Data Fim: ${dataFim}<br>
-            Dias Úteis: ${totalDias}
-        `;
-        document.getElementById('resumoPedidos').appendChild(resumoDiv);
-
-        document.getElementById('successMessage').innerText = "✔️ Pedido submetido com sucesso!";
-        document.getElementById('errorMessages').innerText = '';
-        document.getElementById('errorMessages').style.display = 'none';
-
-        form.reset();
-        document.getElementById('diasCalculados').innerText = 'Dias úteis calculados: 0';
-
-    } catch(err){
-        document.getElementById('errorMessages').innerText = "❌ Erro ao enviar: "+err.message;
-        document.getElementById('successMessage').innerText = '';
-        document.getElementById('errorMessages').style.display='block';
-    }
+    document.getElementById('successMessage').innerText = "✔️ Pedido enviado!";
+    document.getElementById('errorMessages').style.display='none';
+    e.target.reset();
+    document.getElementById('diasCalculados').innerText = "Dias úteis calculados: 0";
 });
 
 // ----- LOGIN -----
-document.getElementById('btnEntrar').addEventListener('click', function(){
-    const senha = document.getElementById('password').value;
-    const erroDiv = document.getElementById('senhaErro');
-    if(senha === "senha"){
+document.getElementById('btnEntrar').addEventListener('click', () =>{
+    if(document.getElementById('password').value === "123"){
         document.getElementById('passwordPrompt').style.display='none';
         document.getElementById('formContainer').style.display='block';
-        erroDiv.style.display='none';
-    } else{
-        erroDiv.style.display='block';
+    } else {
+        document.getElementById('senhaErro').style.display='block';
     }
 });
 </script>
+
 </body>
 </html>
+
