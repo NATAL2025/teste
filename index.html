@@ -105,7 +105,12 @@ const supabase = createClient(
 );
 
 // ----- FERIADOS -----
-const feriados = ['2025-04-25','2025-04-18','2025-05-01'];
+const feriados = [
+    '2025-04-25','2025-04-18','2025-05-01',
+    '2025-12-25', // novo
+    '2026-01-01'  // novo
+];
+
 const finDeSemana = [0,6];
 
 function isFeriadoOuFimDeSemana(data){
@@ -137,6 +142,30 @@ function atualizarDiasCalculados(){
 document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
 document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
 
+// ----- BLOQUEAR SELEÇÃO DE FINS DE SEMANA + FERIADOS -----
+function bloquearDatasInvalidas(input){
+    input.addEventListener("change", function () {
+        const data = new Date(this.value);
+        const diaSemana = data.getDay();
+        const dataFormatada = this.value;
+
+        if (diaSemana === 0 || diaSemana === 6) {
+            alert("❌ Não é permitido escolher fins de semana.");
+            this.value = "";
+            return;
+        }
+
+        if (feriados.includes(dataFormatada)) {
+            alert("❌ Não é permitido escolher feriados.");
+            this.value = "";
+            return;
+        }
+    });
+}
+
+bloquearDatasInvalidas(document.getElementById('dataInicio'));
+bloquearDatasInvalidas(document.getElementById('dataFim'));
+
 // ----- VERIFICA DATAS DUPLICADAS -----
 async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
     try {
@@ -156,7 +185,7 @@ async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
             return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
         });
 
-        return conflitos; // retorna array de pedidos em conflito
+        return conflitos;
     } catch(err){
         console.error("Erro ao verificar datas duplicadas:", err);
         return [];
