@@ -1,260 +1,130 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pedido de Férias 2026</title>
+<title>Contador Dias Úteis</title>
 <style>
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: none;
-    color: #0f3d2e;
-    margin: 0;
-    height: 100vh;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 40px;
+body{
+    font-family: Arial, sans-serif;
+    background:#f7f7f7;
+    padding:20px;
 }
-#passwordPrompt, #formContainer {
-    background-color: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(15, 61, 46, 0.2);
-    max-width: 400px;
-    width: 100%;
-    margin-bottom: 20px;
+.container{
+    background:#fff;
+    padding:20px;
+    border-radius:6px;
+    max-width:500px;
+    margin:auto;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
-label { display: block; margin-bottom: 10px; color: #0f3d2e; }
-select, input[type="date"], input[type="password"] {
-    padding: 8px; margin-bottom: 15px; width: 100%;
-    border: 1px solid #0f3d2e; border-radius: 6px;
-    background-color: #f8fdfb; color: #0f3d2e;
+input,button{
+    padding:10px;
+    width:100%;
+    margin-top:10px;
 }
-button {
-    padding: 10px 15px; background-color: #0f3d2e; color: white;
-    border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;
-}
-button:hover { background-color: #0c3326; }
-.error { color: #a33; margin-top: 10px; display: none; }
-.success { color: green; font-weight: bold; margin-top: 15px; }
-#detalhesReserva { margin-top: 20px; }
-#formContainer { display: none; }
-h1, h2 { text-align: center; }
-#resumoPedidos div {
-    border: 1px solid #0f3d2e;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 6px;
-    background-color: #e6ffec;
+#resultado{
+    margin-top:20px;
+    font-size:18px;
+    font-weight:bold;
 }
 </style>
 </head>
 <body>
+<div class="container">
+    <h2>Calculadora de Dias Úteis</h2>
 
-<!-- LOGIN -->
-<div id="passwordPrompt">
-<h1>Pedidos de Férias 2026</h1>
-<label for="password">Digite a senha para acessar o formulário:</label>
-<input type="password" id="password" required>
-<button id="btnEntrar">Entrar</button>
-<div id="senhaErro" class="error">Senha incorreta. Tente novamente.</div>
-</div>
+    <form id="formulario">
+        <label>Data de Início:</label>
+        <input type="date" id="dataInicio" required>
 
-<!-- FORMULÁRIO -->
-<div id="formContainer">
-<h1>Pedidos de Férias 2026</h1>
+        <label>Data de Fim:</label>
+        <input type="date" id="dataFim" required>
 
-<form id="reservaForm">
-<label for="nome">Nome:</label>
-<select id="nome" required>
-    <option value="Andreia Gralha">Andreia Gralha</option>
-    <option value="Telma Rosa">Telma Rosa</option>
-</select>
+        <button type="submit">Calcular</button>
+    </form>
 
-<label for="tipoDias">Tipo de Dias:</label>
-<select id="tipoDias" required>
-    <option value="Preferenciais">Preferenciais</option>
-    <option value="Não Preferenciais">Não Preferenciais</option>
-</select>
-
-<label for="dataInicio">Data de Início:</label>
-<input type="date" id="dataInicio" required>
-
-<label for="dataFim">Data de Fim:</label>
-<input type="date" id="dataFim" required>
-
-<div id="diasCalculados">Dias úteis calculados: 0</div>
-
-<div id="errorMessages" class="error"></div>
-<div id="successMessage" class="success"></div>
-
-<button type="submit">Enviar</button>
-</form>
-
-<div id="resumoPedidos"></div>
+    <div id="resultado"></div>
 </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+const dataInicioEl = document.getElementById("dataInicio");
+const dataFimEl = document.getElementById("dataFim");
+const resultadoEl = document.getElementById("resultado");
+const form = document.getElementById("formulario");
 
-const supabase = createClient(
-    'https://bijndfsxrzjviwrdvwms.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpam5kZnN4cnpqdml3cmR2d21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NTA5NTIsImV4cCI6MjA2NjQyNjk1Mn0.EWaFInuqTaxvnjytb40DdnflEbBrbSYcViKLYc_kKBk'
-);
-
-// -------- FERIADOS --------
 const feriados = [
-    '2025-04-25',
-    '2025-04-18',
-    '2025-05-01',
-    '2025-12-25',
-    '2026-01-01'
+    "2025-04-25",
+    "2025-04-18",
+    "2025-05-01",
+    "2025-12-25", // Natal
+    "2026-01-01"  // Ano Novo
 ];
 
-const finDeSemana = [0,6];
-
-function isFeriadoOuFimDeSemana(data){
-    const dataFormatada = data.toISOString().split('T')[0];
-    const diaDaSemana = data.getDay();
-    return finDeSemana.includes(diaDaSemana) || feriados.includes(dataFormatada);
-}
-
-// 🔥 NOVO — verifica se existe feriado OU fim de semana no intervalo
-function intervaloContemFeriadoOuFimDeSemana(dataInicio, dataFim){
-    const start = new Date(dataInicio);
-    const end = new Date(dataFim);
-
-    for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
-        if(isFeriadoOuFimDeSemana(d)) return true;
-    }
-    return false;
-}
-
-function calcularDiasEntreDatas(dataInicio,dataFim){
-    const start = new Date(dataInicio);
-    const end = new Date(dataFim);
-    let dias = 0;
-
-    for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
-        if(isFeriadoOuFimDeSemana(d)) continue;
-        dias++;
-    }
-    return dias;
-}
-
-function atualizarDiasCalculados(){
-    const dataInicio = document.getElementById('dataInicio').value;
-    const dataFim = document.getElementById('dataFim').value;
-    const div = document.getElementById('diasCalculados');
-
-    if(dataInicio && dataFim){
-        div.innerText = `Dias úteis calculados: ${calcularDiasEntreDatas(dataInicio,dataFim)}`;
-    } else {
-        div.innerText = 'Dias úteis calculados: 0';
-    }
-}
-
-document.getElementById('dataInicio').addEventListener('change', atualizarDiasCalculados);
-document.getElementById('dataFim').addEventListener('change', atualizarDiasCalculados);
-
-// ----- VERIFICA DUPLICADAS -----
-async function verificarDatasDuplicadas(nome, dataInicio, dataFim){
-    const { data: pedidos } = await supabase
-        .from('pedidos_ferias')
-        .select('data_inicio,data_fim')
-        .eq('nome', nome);
-
-    const inicioNovo = new Date(dataInicio);
-    const fimNovo = new Date(dataFim);
-
-    return pedidos.filter(p => {
-        const inicioExistente = new Date(p.data_inicio);
-        const fimExistente = new Date(p.data_fim);
-        return inicioNovo <= fimExistente && fimNovo >= inicioExistente;
-    });
-}
-
-// ----- VERIFICA LIMITES -----
-async function verificarLimites(nome, tipoDias, diasNovo){
-    const limites = {
-        "Andreia Gralha": { "Preferenciais": 5, "Não Preferenciais": 10 },
-        "Telma Rosa": { "Preferenciais": 2, "Não Preferenciais": 2 }
-    };
-
-    const { data: pedidos } = await supabase
-        .from('pedidos_ferias')
-        .select('total_dias,tipo_dias')
-        .eq('nome', nome)
-        .eq('tipo_dias', tipoDias);
-
-    let diasUsados = pedidos.reduce((sum,p)=>sum+p.total_dias,0);
-    let limite = limites[nome][tipoDias];
-
-    if(diasUsados + diasNovo > limite){
-        return { pode:false, diasRestantes: limite - diasUsados };
-    }
-    return { pode:true, diasRestantes: limite - (diasUsados + diasNovo) };
-}
-
-// ----- ENVIO -----
-async function enviarAoSupabase(dados){
-    return await supabase.from('pedidos_ferias').insert([dados]);
-}
-
-// ----- SUBMIT -----
-document.getElementById('reservaForm').addEventListener('submit', async function(e){
+form.addEventListener("submit", function(e){
     e.preventDefault();
 
-    const nome = document.getElementById('nome').value;
-    const tipoDias = document.getElementById('tipoDias').value;
-    const dataInicio = document.getElementById('dataInicio').value;
-    const dataFim = document.getElementById('dataFim').value;
-    const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
+    const dataInicio = dataInicioEl.value;
+    const dataFim = dataFimEl.value;
 
-    // 🚫 NOVO BLOQUEIO
-    if(intervaloContemFeriadoOuFimDeSemana(dataInicio, dataFim)){
-        document.getElementById('errorMessages').innerText = 
-        "❌ Não pode incluir feriados ou fins de semana no pedido. Escolha apenas dias úteis.";
-        document.getElementById('errorMessages').style.display='block';
+    if(!dataInicio || !dataFim){
+        alert("Tem que escolher uma data!");
         return;
     }
 
-    const conflitos = await verificarDatasDuplicadas(nome, dataInicio, dataFim);
-    if(conflitos.length > 0){
-        document.getElementById('errorMessages').innerText = "❌ Datas já reservadas.";
-        document.getElementById('errorMessages').style.display='block';
+    if(dataFim < dataInicio){
+        alert("A data de fim não pode ser inferior à data de início!");
         return;
     }
 
-    const limiteCheck = await verificarLimites(nome, tipoDias, totalDias);
-    if(!limiteCheck.pode){
-        document.getElementById('errorMessages').innerText = 
-        `❌ Limite ultrapassado. Restam ${limiteCheck.diasRestantes} dias.`;
-        document.getElementById('errorMessages').style.display='block';
+    let inicio = new Date(dataInicio);
+    let fim = new Date(dataFim);
+    let contador = 0;
+
+    // 🔥 Verificação de conflitos (data exata)
+    while(inicio <= fim){
+        const diaSemana = inicio.getDay();
+        const formato = inicio.toISOString().split("T")[0];
+
+        if(diaSemana === 0 || diaSemana === 6){
+            alert(`A data ${formato} está em conflito (fim de semana)!`);
+            return;
+        }
+
+        if(feriados.includes(formato)){
+            alert(`A data ${formato} está em conflito (feriado)!`);
+            return;
+        }
+
+        inicio.setDate(inicio.getDate() + 1);
+    }
+
+    // --- Se passou aqui, não tem conflitos ---
+
+    // Reset contador
+    inicio = new Date(dataInicio);
+
+    while(inicio <= fim){
+        const diaSemana = inicio.getDay();
+        const formato = inicio.toISOString().split("T")[0];
+
+        if( diaSemana !== 0 && diaSemana !== 6 && !feriados.includes(formato) ){
+            contador++;
+        }
+
+        inicio.setDate(inicio.getDate() + 1);
+    }
+
+    if(contador <= 0){
+        alert("Tem que escolher um dia de semana!");
         return;
     }
 
-    const dados = { nome, tipo_dias: tipoDias, data_inicio: dataInicio, data_fim: dataFim, total_dias: totalDias };
-    await enviarAoSupabase(dados);
-
-    document.getElementById('successMessage').innerText = "✔️ Pedido enviado!";
-    document.getElementById('errorMessages').style.display='none';
-    e.target.reset();
-    document.getElementById('diasCalculados').innerText = "Dias úteis calculados: 0";
-});
-
-// ----- LOGIN -----
-document.getElementById('btnEntrar').addEventListener('click', () =>{
-    if(document.getElementById('password').value === "123"){
-        document.getElementById('passwordPrompt').style.display='none';
-        document.getElementById('formContainer').style.display='block';
-    } else {
-        document.getElementById('senhaErro').style.display='block';
-    }
+    // 🔥 MENSAGEM FINAL DE ENVIO / SUBMISSÃO
+    resultadoEl.textContent = 
+        `De ${dataInicio} até ${dataFim} total de dias úteis ${contador}`;
 });
 </script>
 
 </body>
 </html>
-
