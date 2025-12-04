@@ -193,6 +193,41 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
     const dataInicio = document.getElementById("dataInicio").value;
     const dataFim = document.getElementById("dataFim").value;
 
+    // 🔥 REGRA 1 - FÉRIAS 2025 ATÉ 30/04/2026
+    if(tipoDias === "F25"){
+        const limiteF25 = "2026-04-30";
+        if(dataInicio > limiteF25 || dataFim > limiteF25){
+            document.getElementById("errorMessages").innerText =
+            "❌ Férias 2025 só podem ser marcadas até 30/04/2026.";
+            document.getElementById("errorMessages").style.display="block";
+            return;
+        }
+    }
+
+    // 🔥 REGRA 2 - BLOQUEAR DEZEMBRO 2026 (exceto 24/12/2026)
+    const inicioDec = "2026-12-01";
+    const fimDec = "2026-12-30";
+    const excecao = "2026-12-24";
+
+    function intervaloTemDezembro(d1,d2){
+        let start = new Date(d1);
+        let end = new Date(d2);
+        for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+            let f = d.toISOString().split("T")[0];
+            if(f >= inicioDec && f <= fimDec && f !== excecao){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if(intervaloTemDezembro(dataInicio,dataFim)){
+        document.getElementById("errorMessages").innerText =
+        "❌ Mês de Dezembro 2026 está bloqueado, exceto 24/12/2026.";
+        document.getElementById("errorMessages").style.display="block";
+        return;
+    }
+
     const conflitosDatas = listarConflitosFDS_FERIADOS(dataInicio,dataFim);
     if(conflitosDatas.length > 0){
         document.getElementById("errorMessages").innerText =
