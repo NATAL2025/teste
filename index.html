@@ -74,8 +74,10 @@ h1, h2 { text-align: center; }
 
 <label for="tipoDias">Tipo de Dias:</label>
 <select id="tipoDias" required>
-    <option value="Preferenciais">Preferenciais</option>
-    <option value="Não Preferenciais">Não Preferenciais</option>
+      <option value="F25">Férias 2025</option>
+
+    <option value="Preferenciais">2026 - Preferenciais</option>
+    <option value="Não Preferenciais">2026 - Não Preferenciais</option>
 </select>
 
 <label for="dataInicio">Data de Início:</label>
@@ -162,10 +164,11 @@ async function verificarDatasDuplicadas(nome,dataInicio,dataFim){
 
 // --- LIMITES ---
 async function verificarLimites(nome,tipoDias,diasNovo){
+
     const limites = {
-        "Andreia Gralha": { "Preferenciais": 5, "Não Preferenciais": 10 },
-        "Telma Rosa": { "Preferenciais": 2, "Não Preferenciais": 2 }
-    };
+    "Andreia Gralha": { "F25": 1, "Preferenciais": 5, "Não Preferenciais": 10 },
+    "Telma Rosa": { "F25": 2, "Preferenciais": 2, "Não Preferenciais": 2 }
+};
 
     const { data } = await supabase
         .from('FID_COORDENAÇÃO')
