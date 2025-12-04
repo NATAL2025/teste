@@ -74,8 +74,7 @@ h1, h2 { text-align: center; }
 
 <label for="tipoDias">Tipo de Dias:</label>
 <select id="tipoDias" required>
-      <option value="F25">Férias 2025</option>
-
+    <option value="F25">Férias 2025</option>
     <option value="Preferenciais">2026 - Preferenciais</option>
     <option value="Não Preferenciais">2026 - Não Preferenciais</option>
 </select>
@@ -166,9 +165,9 @@ async function verificarDatasDuplicadas(nome,dataInicio,dataFim){
 async function verificarLimites(nome,tipoDias,diasNovo){
 
     const limites = {
-    "Andreia Gralha": { "F25": 1, "Preferenciais": 5, "Não Preferenciais": 10 },
-    "Telma Rosa": { "F25": 2, "Preferenciais": 2, "Não Preferenciais": 2 }
-};
+        "Andreia Gralha": { "F25": 0, "Preferenciais": 5, "Não Preferenciais": 10 },
+        "Telma Rosa": { "F25": 2, "Preferenciais": 2, "Não Preferenciais": 2 }
+    };
 
     const { data } = await supabase
         .from('FID_COORDENAÇÃO')
@@ -180,9 +179,9 @@ async function verificarLimites(nome,tipoDias,diasNovo){
     let limite = limites[nome][tipoDias];
 
     if(usados + diasNovo > limite){
-        return { pode:false, restam: limite - usados };
+        return { pode:false, limiteTotal: limite };
     }
-    return { pode:true, restam: limite - (usados + diasNovo) };
+    return { pode:true };
 }
 
 // --- SUBMIT ---
@@ -194,7 +193,6 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
     const dataInicio = document.getElementById("dataInicio").value;
     const dataFim = document.getElementById("dataFim").value;
 
-    // 🔥 LISTAR CONFLITOS (feriados e fins de semana)
     const conflitosDatas = listarConflitosFDS_FERIADOS(dataInicio,dataFim);
     if(conflitosDatas.length > 0){
         document.getElementById("errorMessages").innerText =
@@ -205,7 +203,6 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
 
     const totalDias = calcularDiasEntreDatas(dataInicio,dataFim);
 
-    // Conflitos duplicados
     const duplicadas = await verificarDatasDuplicadas(nome,dataInicio,dataFim);
     if(duplicadas.length > 0){
         let conflitoMsg = duplicadas.map(c=>`${c.data_inicio} a ${c.data_fim}`).join(", ");
@@ -217,13 +214,25 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
 
     const limite = await verificarLimites(nome,tipoDias,totalDias);
     if(!limite.pode){
-        document.getElementById("errorMessages").innerText =
-        `❌ Limite ultrapassado, restam ${limite.restam} dias.`;
+
+        let msg = "";
+        let autorizados = limite.limiteTotal;
+
+        if(tipoDias === "F25"){
+            msg = `❌ ${autorizados} dias autorizados em Férias 2025.`;
+        }
+        else if(tipoDias === "Preferenciais"){
+            msg = `❌ ${autorizados} dias autorizados em Preferenciais 2026.`;
+        }
+        else if(tipoDias === "Não Preferenciais"){
+            msg = `❌ ${autorizados} dias autorizados em Não Preferenciais 2026.`;
+        }
+
+        document.getElementById("errorMessages").innerText = msg;
         document.getElementById("errorMessages").style.display="block";
         return;
     }
 
-    // Envia
     await supabase.from("FID_COORDENAÇÃO").insert([{
         nome,
         tipo_dias: tipoDias,
@@ -232,12 +241,10 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
         total_dias: totalDias
     }]);
 
-    // ✔️ MENSAGEM DE SUCESSO PERSONALIZADA
     document.getElementById("successMessage").innerText =
     `✔️ Pedido Registado: ${nome} (${tipoDias}) ${dataInicio} a ${dataFim} (${totalDias} dias úteis)`;
     document.getElementById("errorMessages").style.display="none";
 
-    // resumo
     const div = document.createElement("div");
     div.innerHTML = `
         <strong>Pedido Registado:</strong><br>
