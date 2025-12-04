@@ -146,7 +146,7 @@ function calcularDiasEntreDatas(dataInicio,dataFim){
 // --- DUPLICADAS ---
 async function verificarDatasDuplicadas(nome,dataInicio,dataFim){
     const { data } = await supabase
-        .from('pedidos_ferias')
+        .from('FID_COORDENAÇÃO')
         .select('data_inicio,data_fim')
         .eq('nome',nome);
 
@@ -168,7 +168,7 @@ async function verificarLimites(nome,tipoDias,diasNovo){
     };
 
     const { data } = await supabase
-        .from('pedidos_ferias')
+        .from('FID_COORDENAÇÃO')
         .select('total_dias,tipo_dias')
         .eq('nome',nome)
         .eq('tipo_dias',tipoDias);
@@ -221,7 +221,7 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
     }
 
     // Envia
-    await supabase.from("pedidos_ferias").insert([{
+    await supabase.from("FID_COORDENAÇÃO").insert([{
         nome,
         tipo_dias: tipoDias,
         data_inicio: dataInicio,
@@ -252,7 +252,7 @@ document.getElementById("reservaForm").addEventListener("submit", async(e)=>{
 
 // --- LOGIN ---
 document.getElementById("btnEntrar").addEventListener("click",()=>{
-    if(document.getElementById("password").value === "123"){
+    if(document.getElementById("password").value === "FID2026_COORD"){
         document.getElementById("passwordPrompt").style.display="none";
         document.getElementById("formContainer").style.display="block";
     } else {
@@ -263,4 +263,3 @@ document.getElementById("btnEntrar").addEventListener("click",()=>{
 
 </body>
 </html>
-
